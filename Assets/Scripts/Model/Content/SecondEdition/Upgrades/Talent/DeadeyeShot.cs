@@ -44,7 +44,7 @@ namespace Abilities.SecondEdition
                 1,
                 new List<DieSide> { DieSide.Crit },
                 DieSide.Success,
-                payAbilityCost: ExposeFaceDownCard
+                payAbilityPostCost: ExposeFaceDownCard
             );
 
             AddDiceModification(
@@ -55,7 +55,7 @@ namespace Abilities.SecondEdition
                 1,
                 new List<DieSide> { DieSide.Success },
                 DieSide.Blank,
-                payAbilityCost: ExposeFaceDownCard
+                payAbilityPostCost: ExposeFaceDownCard
             );
         }
 
@@ -65,6 +65,7 @@ namespace Abilities.SecondEdition
         }
         public bool IsCritAvailable()
         {
+            if (IsAbilityUsed) return false;
             if (Combat.Attacker != HostShip) return false;
             if (Combat.ChosenWeapon.WeaponType != WeaponTypes.PrimaryWeapon) return false;
             if (!HostShip.SectorsInfo.IsShipInSector(Combat.Defender, ArcType.Bullseye)) return false;
@@ -75,6 +76,7 @@ namespace Abilities.SecondEdition
         }
         public bool IsHitAvailable()
         {
+            if (IsAbilityUsed) return false;
             if (Combat.Attacker != HostShip) return false;
             if (Combat.ChosenWeapon.WeaponType != WeaponTypes.PrimaryWeapon) return false;
             if (!HostShip.SectorsInfo.IsShipInSector(Combat.Defender, ArcType.Bullseye)) return false;
@@ -84,20 +86,22 @@ namespace Abilities.SecondEdition
             return true;
         }
 
-        private void ExposeFaceDownCard(Action<bool> callback)
+        private void ExposeFaceDownCard()
         {
-            Triggers.RegisterTrigger(new Trigger()
-            {
-                Name = HostShip.PilotInfo.PilotName + " " + HostUpgrade.UpgradeInfo.Name + " exposes facedown card",
-                TriggerType = TriggerTypes.OnDieResultIsSpent,
-                TriggerOwner = Combat.Defender.Owner.PlayerNo,
-                EventHandler = delegate
-                {
-                    Combat.Defender.Damage.ExposeRandomFacedownCard(Triggers.FinishTrigger);
-                }
-            });
+            // Triggers.RegisterTrigger(new Trigger()
+            // {
+            //     Name = HostShip.PilotInfo.PilotName + " " + HostUpgrade.UpgradeInfo.Name + " exposes facedown card",
+            //     TriggerType = TriggerTypes.OnAbilityDirect,
+            //     TriggerOwner = Combat.Defender.Owner.PlayerNo,
+            //     EventHandler = delegate
+            //     {
+            //         Combat.Defender.Damage.ExposeRandomFacedownCard(DecisionSubPhase.ConfirmDecision);
+            //     }
+            // });
 
-            callback(true);
+            // Triggers.ResolveTriggers(TriggerTypes.OnAbilityDirect);
+            Combat.Defender.Damage.ExposeRandomFacedownCard(DecisionSubPhase.ConfirmDecision);
+            IsAbilityUsed = true;
         }
     }
 }
