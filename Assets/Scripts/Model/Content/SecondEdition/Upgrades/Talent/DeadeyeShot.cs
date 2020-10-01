@@ -37,31 +37,38 @@ namespace Abilities.SecondEdition
         public override void ActivateAbility()
         {
             AddDiceModification(
-                HostUpgrade.UpgradeInfo.Name + ": change crit to hit to expose damage card",
+                HostUpgrade.UpgradeInfo.Name + " Crit",
                 IsCritAvailable,
                 () => 35,
                 DiceModificationType.Change,
                 1,
                 new List<DieSide> { DieSide.Crit },
                 DieSide.Success,
-                payAbilityPostCost: ExposeFaceDownCard
+                payAbilityCost: ExposeFaceDownCard
             );
 
             AddDiceModification(
-                HostUpgrade.UpgradeInfo.Name + ": spend hit to expose damage card",
+                HostUpgrade.UpgradeInfo.Name + " Hit",
                 IsHitAvailable,
                 () => 20,
-                DiceModificationType.Change,
+                DiceModificationType.Spend,
                 1,
                 new List<DieSide> { DieSide.Success },
-                DieSide.Blank,
-                payAbilityPostCost: ExposeFaceDownCard
+                payAbilityCost: ExposeFaceDownCard
             );
+
+            HostShip.OnAttackFinish += ResetUsedFlag;
         }
 
         public override void DeactivateAbility()
         {
             RemoveDiceModification();
+            HostShip.OnAttackFinish -= ResetUsedFlag;
+        }
+
+        public void ResetUsedFlag(GenericShip ship)
+        {
+            ClearIsAbilityUsedFlag();
         }
         public bool IsCritAvailable()
         {
@@ -80,28 +87,23 @@ namespace Abilities.SecondEdition
             if (Combat.Attacker != HostShip) return false;
             if (Combat.ChosenWeapon.WeaponType != WeaponTypes.PrimaryWeapon) return false;
             if (!HostShip.SectorsInfo.IsShipInSector(Combat.Defender, ArcType.Bullseye)) return false;
-            if (Combat.DiceRollAttack.Successes < 1) return false;
+            if (Combat.DiceRollAttack.RegularSuccesses < 1) return false;
             if (!Combat.Defender.Damage.HasFacedownCards) return false;
 
             return true;
         }
 
-        private void ExposeFaceDownCard()
+        private void ExposeFaceDownCard(Action<bool> callback)
         {
-            // Triggers.RegisterTrigger(new Trigger()
-            // {
-            //     Name = HostShip.PilotInfo.PilotName + " " + HostUpgrade.UpgradeInfo.Name + " exposes facedown card",
-            //     TriggerType = TriggerTypes.OnAbilityDirect,
-            //     TriggerOwner = Combat.Defender.Owner.PlayerNo,
-            //     EventHandler = delegate
-            //     {
-            //         Combat.Defender.Damage.ExposeRandomFacedownCard(DecisionSubPhase.ConfirmDecision);
-            //     }
-            // });
-
-            // Triggers.ResolveTriggers(TriggerTypes.OnAbilityDirect);
-            Combat.Defender.Damage.ExposeRandomFacedownCard(DecisionSubPhase.ConfirmDecision);
-            IsAbilityUsed = true;
+            if (Combat.Defender.Damage.HasFacedownCards)
+            {
+                IsAbilityUsed = true;
+                Combat.Defender.Damage.ExposeRandomFacedownCard(delegate { callback(true); });
+            }
+            else
+            {
+                callback(false);
+            }
         }
     }
 }
